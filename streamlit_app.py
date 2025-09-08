@@ -20,10 +20,15 @@ from __future__ import annotations
 import os
 import traceback
 from datetime import datetime, date
+import math
 from typing import Any, Dict, List
 
 import pandas as pd
 import streamlit as st
+try:
+    import nfl_data_py as nfl
+except Exception:  # pragma: no cover
+    nfl = None
 
 from nfl_predictor import (
     fetch_data,
@@ -87,6 +92,125 @@ def _predict_slate_rows(rows: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(out_rows)
 
 
+def _fmt_date(dt_val: Any) -> str:
+    try:
+        if pd.isna(dt_val):
+            return "TBD"
+        d = pd.to_datetime(dt_val, errors="coerce")
+        if pd.isna(d):
+            return "TBD"
+        return d.strftime("%Y-%m-%d")
+    except Exception:
+        return "TBD"
+
+
+@st.cache_data(show_spinner=False)
+def _team_colors() -> Dict[str, Dict[str, str]]:
+    """Return mapping of team abbr -> {'c1': '#xxxxxx', 'c2': '#xxxxxx'}.
+    Uses nfl_data_py.import_team_desc when available; otherwise defaults.
+    """
+    default = {
+        "c1": "#1f2937",  # slate gray
+        "c2": "#374151",
+    }
+    mapping: Dict[str, Dict[str, str]] = {}
+    try:
+        if nfl is None:
+            raise RuntimeError("nfl_data_py missing")
+        desc = nfl.import_team_desc()
+        for _, r in desc.iterrows():
+            abbr = str(r.get("team_abbr", "")).strip()
+            c1 = str(r.get("team_color", "")).strip() or default["c1"]
+            c2 = str(r.get("team_color2", "")).strip() or c1
+            if not c1.startswith("#"):
+                c1 = "#" + c1
+            if not c2.startswith("#"):
+                c2 = "#" + c2
+            mapping[abbr] = {"c1": c1, "c2": c2}
+    except Exception:
+        pass
+    return mapping
+
+
+def _hex_to_rgba(hex_str: str, alpha: float) -> str:
+    h = hex_str.lstrip('#')
+    if len(h) == 3:
+        h = ''.join([c*2 for c in h])
+    try:
+        r = int(h[0:2], 16)
+        g = int(h[2:4], 16)
+        b = int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+    except Exception:
+        return f"rgba(31,41,55,{alpha})"  # slate fallback
+
+
+def _render_game_cards(df: pd.DataFrame, cols: int = 3) -> None:
+    """Render games as bordered cards instead of a table."""
+    if df.empty:
+        st.info("No games to display.")
+        return
+    df = df.reset_index(drop=True)
+    colors_map = _team_colors()
+    num = len(df)
+    i = 0
+    while i < num:
+        col_objs = st.columns(cols)
+        for j in range(cols):
+            if i + j >= num:
+                break
+            r = df.iloc[i + j]
+            away_abbr = str(r.get('away', 'TBD'))
+            home_abbr = str(r.get('home', 'TBD'))
+            matchup = f"{away_abbr} at {home_abbr}"
+            date_str = _fmt_date(r.get("date"))
+            pick = r.get("moneyline_pick", "-")
+            prob = float(r.get("moneyline_prob", 0.0)) * 100.0
+            vsp = r.get("vegas_spread", float("nan"))
+            vto = r.get("vegas_total", float("nan"))
+            ps = r.get("pred_spread", float("nan"))
+            pt = r.get("pred_total", float("nan"))
+            # Colors and gradient background
+            ac = colors_map.get(away_abbr, {"c1": "#7f1d1d", "c2": "#991b1b"})
+            hc = colors_map.get(home_abbr, {"c1": "#065f46", "c2": "#047857"})
+            a1 = _hex_to_rgba(ac["c1"], 0.80)
+            a2 = _hex_to_rgba(ac["c2"], 0.80)
+            h1 = _hex_to_rgba(hc["c1"], 0.80)
+            h2 = _hex_to_rgba(hc["c2"], 0.80)
+            bg = (
+                "linear-gradient(135deg, "
+                f"{a1} 0%, {a2} 48%, {h1} 52%, {h2} 100%)"
+            )
+            html = f"""
+            <div style='border:1px solid #374151;border-radius:14px;
+                        padding:12px;margin:6px;background:{bg};'>
+              <div style='font-weight:700;font-size:1.05rem;'>
+                {matchup}
+              </div>
+              <div style='color:#9ca3af;font-size:0.85rem;'>
+                {date_str}
+              </div>
+              <hr style='opacity:0.15;'>
+              <div style='margin-bottom:6px;'>
+                <span style='color:#9ca3af;'>Moneyline:</span>
+                <b>{pick}</b>
+                <span style='color:#9ca3af;'>(p={prob:.1f}%)</span>
+              </div>
+              <div style='color:#9ca3af;font-size:0.9rem;'>
+                Spread: <b>{ps:.1f}</b>
+                <span style='color:#6b7280'>(Vegas {vsp:.1f})</span>
+              </div>
+              <div style='color:#9ca3af;font-size:0.9rem;'>
+                Total: <b>{pt:.1f}</b>
+                <span style='color:#6b7280'>(Vegas {vto:.1f})</span>
+              </div>
+            </div>
+            """
+            with col_objs[j]:
+                st.markdown(html, unsafe_allow_html=True)
+        i += cols
+
+
 # ------------------------------
 # Streamlit UI
 # ------------------------------
@@ -102,7 +226,15 @@ st.title("NFL Betting Predictor Dashboard")
 st.caption("For Sir Toaster the Third — May the odds be ever in your favor")
 
 # Admin gating: hide Train/Update/Backtest unless enabled via env or secrets
-ADMIN_MODE = bool(os.environ.get("NFLP_ADMIN")) or bool(st.secrets.get("ADMIN", False))
+ADMIN_MODE = False
+if os.environ.get("NFLP_ADMIN"):
+    ADMIN_MODE = True
+else:
+    # Guard against missing secrets.toml
+    try:
+        ADMIN_MODE = bool(st.secrets.get("ADMIN", False))
+    except Exception:
+        ADMIN_MODE = False
 
 if ADMIN_MODE:
     tab_pred, tab_date, tab_week, tab_train, tab_update, tab_bt, tab_about = st.tabs(
@@ -192,10 +324,7 @@ with tab_pred:
                             st.info("Unable to compute predictions for the slate.")
                         else:
                             res = res.sort_values(["date", "home"]).reset_index(False)
-                            res["moneyline_prob"] = (
-                                res["moneyline_prob"] * 100
-                            ).round(1)
-                            st.dataframe(res, use_container_width=True)
+                            _render_game_cards(res, cols=3)
         else:
             st.info("No schedule available. Train first on the Train tab.")
     except Exception:
@@ -213,11 +342,10 @@ with tab_date:
                 slate = sched[sched["gameday"].dt.date == pd.Timestamp(d).date()]
                 res = _predict_slate_rows(slate)
             if res.empty:
-                st.info("No games found on selected date.")
+                st.info("No games found on selected date (train first or choose another date).")
             else:
                 res = res.sort_values(["date", "home"]).reset_index(drop=True)
-                res["moneyline_prob"] = (res["moneyline_prob"] * 100).round(1)
-                st.dataframe(res, use_container_width=True)
+                _render_game_cards(res, cols=3)
         except Exception:
             st.error("Date slate prediction failed:")
             st.code(traceback.format_exc())
@@ -240,11 +368,10 @@ with tab_week:
                               (sched["week"].astype(int) == int(week))]
                 res = _predict_slate_rows(slate)
             if res.empty:
-                st.info("No games found for that season/week.")
+                st.info("No games found for that season/week (train first or adjust).")
             else:
                 res = res.sort_values(["date", "home"]).reset_index(drop=True)
-                res["moneyline_prob"] = (res["moneyline_prob"] * 100).round(1)
-                st.dataframe(res, use_container_width=True)
+                _render_game_cards(res, cols=3)
         except Exception:
             st.error("Week prediction failed:")
             st.code(traceback.format_exc())

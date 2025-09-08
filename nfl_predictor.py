@@ -54,6 +54,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+from glob import glob
 
 import numpy as np
 import pandas as pd
@@ -103,6 +104,8 @@ WEEKLY_CACHE = os.path.join(DATA_DIR, "weekly_2015_ongoing.csv")
 DRAFT_CACHE = os.path.join(DATA_DIR, "draft_2015_ongoing.csv")
 ROSTERS_CACHE = os.path.join(DATA_DIR, "rosters_2015_ongoing.csv")
 COMBINE_CACHE = os.path.join(DATA_DIR, "combine_2015_ongoing.csv")
+PBP_2024_PATH = os.path.join(DATA_DIR, "pbp-2024.csv")
+PBP_AGG_CACHE = os.path.join(DATA_DIR, "pbp_agg.csv")
 
 
 # ----------------------------
@@ -390,6 +393,12 @@ def fetch_data(years: Iterable[int]) -> pd.DataFrame:
     except Exception as e:
         logger.info("Ancillary draft/roster/combine fetch skipped: %s", e)
 
+    # Build play-by-play aggregates via nfl_data_py when available
+    try:
+        _build_pbp_aggregate_from_api(years_list)
+    except Exception as e:
+        logger.info("PBP aggregate via API skipped: %s", e)
+
     return df
 
 
@@ -440,6 +449,188 @@ def _build_team_game_rows(schedule: pd.DataFrame) -> pd.DataFrame:
         drop=True
     )
     return team_games
+
+
+def _list_local_pbp_files() -> List[str]:
+    """Find all local pbp CSVs like data/pbp-2015.csv, data/pbp-2024.csv."""
+    try:
+        paths = sorted(glob(os.path.join(DATA_DIR, "pbp-*.csv")))
+        return paths
+    except Exception:
+        return []
+
+
+def _load_pbp_aggregates(schedule: pd.DataFrame) -> Optional[pd.DataFrame]:
+    """Aggregate custom PBP CSV (2024) into team-game metrics and align to schedule.
+
+    Expected columns in CSV (observed):
+    - GameDate (e.g., 12/29/2024), OffenseTeam, DefenseTeam, SeasonYear,
+      Down, ToGo, Yards, PlayType, IsRush, IsPass, IsSack, IsInterception,
+      IsPenalty, PenaltyYards
+
+    Returns a DataFrame with columns: season, gameday(date), team, opponent,
+    off_ypp, off_pass_rate, off_explosive_rate, off_sack_rate, off_int_rate,
+    off_pen_yds_pp, off_success_rate.
+    """
+    try:
+        # If cached aggregate exists and is newer than all pbp files, use it
+        pbp_files = _list_local_pbp_files()
+        if os.path.exists(PBP_AGG_CACHE):
+            cache_mtime = os.path.getmtime(PBP_AGG_CACHE)
+            if all(os.path.getmtime(p) <= cache_mtime for p in pbp_files):
+                agg = pd.read_csv(PBP_AGG_CACHE)
+                agg["gameday"] = pd.to_datetime(agg["gameday"], errors="coerce")
+                return agg
+
+        # Load and concatenate all local pbp csvs if present
+        if not pbp_files and not os.path.exists(PBP_2024_PATH):
+            return None
+        frames: List[pd.DataFrame] = []
+        for path in (pbp_files or [PBP_2024_PATH]):
+            try:
+                frames.append(pd.read_csv(path))
+            except Exception as e:
+                logger.warning("Failed reading %s: %s", path, e)
+        if not frames:
+            return None
+        pbp = pd.concat(frames, ignore_index=True)
+        pbp["gameday"] = pd.to_datetime(pbp.get("GameDate"), errors="coerce")
+        pbp["season"] = pd.to_numeric(pbp.get("SeasonYear"), errors="coerce")
+        pbp["team"] = pbp.get("OffenseTeam").astype(str)
+        pbp["opponent"] = pbp.get("DefenseTeam").astype(str)
+        pbp["yards"] = pd.to_numeric(pbp.get("Yards"), errors="coerce").fillna(0)
+        pbp["is_pass"] = pd.to_numeric(pbp.get("IsPass"), errors="coerce").fillna(0)
+        pbp["is_rush"] = pd.to_numeric(pbp.get("IsRush"), errors="coerce").fillna(0)
+        pbp["is_sack"] = pd.to_numeric(pbp.get("IsSack"), errors="coerce").fillna(0)
+        pbp["is_int"] = pd.to_numeric(
+            pbp.get("IsInterception"), errors="coerce"
+        ).fillna(0)
+        pbp["is_pen"] = pd.to_numeric(pbp.get("IsPenalty"), errors="coerce").fillna(0)
+        pbp["pen_yds"] = pd.to_numeric(
+            pbp.get("PenaltyYards"), errors="coerce"
+        ).fillna(0)
+        pbp["togo"] = pd.to_numeric(pbp.get("ToGo"), errors="coerce")
+        pbp["down"] = pd.to_numeric(pbp.get("Down"), errors="coerce")
+
+        # Success heuristic: gain >= togo on downs 1-3, or any TD
+        gain_ok = pbp["yards"] >= pbp["togo"].fillna(1e9)
+        td = pd.to_numeric(pbp.get("IsTouchdown"), errors="coerce").fillna(0) > 0
+        pbp["success"] = ((pbp["down"].isin([1, 2, 3]) & gain_ok) | td).astype(int)
+        pbp["explosive"] = (pbp["yards"] >= 20).astype(int)
+
+        grp_cols = ["season", "gameday", "team", "opponent"]
+        agg = pbp.groupby(grp_cols, as_index=False).agg(
+            plays=("yards", "count"),
+            pass_plays=("is_pass", "sum"),
+            rush_plays=("is_rush", "sum"),
+            yards=("yards", "sum"),
+            sacks=("is_sack", "sum"),
+            ints=("is_int", "sum"),
+            pen_yds=("pen_yds", "sum"),
+            success=("success", "mean"),
+            explosive=("explosive", "mean"),
+        )
+        agg["off_ypp"] = agg["yards"] / agg["plays"].replace(0, np.nan)
+        agg["off_pass_rate"] = agg["pass_plays"] / agg["plays"].replace(0, np.nan)
+        agg["off_explosive_rate"] = agg["explosive"]
+        agg["off_sack_rate"] = agg["sacks"] / agg["pass_plays"].replace(0, np.nan)
+        agg["off_int_rate"] = agg["ints"] / agg["pass_plays"].replace(0, np.nan)
+        agg["off_pen_yds_pp"] = agg["pen_yds"] / agg["plays"].replace(0, np.nan)
+        agg["off_success_rate"] = agg["success"]
+
+        # Select columns
+        keep = [
+            "season", "gameday", "team", "opponent", "off_ypp",
+            "off_pass_rate", "off_explosive_rate", "off_sack_rate",
+            "off_int_rate", "off_pen_yds_pp", "off_success_rate",
+        ]
+        agg = agg[keep].copy()
+
+        # Align dates to schedule (drop tz)
+        agg["gameday"] = agg["gameday"].dt.tz_localize(None)
+        # Persist aggregate for reuse
+        try:
+            agg.to_csv(PBP_AGG_CACHE, index=False)
+        except Exception:
+            pass
+        return agg
+    except Exception as e:
+        logger.warning("Failed loading PBP aggregates: %s", e)
+        return None
+
+
+def _build_pbp_aggregate_from_api(years: List[int]) -> Optional[str]:
+    """Fetch pbp via nfl_data_py for seasons and cache team-game aggregates.
+
+    Returns the cache path if created.
+    """
+    if nfl is None:
+        return None
+    try:
+        cols = [
+            "game_id", "game_date", "posteam", "defteam", "down",
+            "ydstogo", "yards_gained", "pass", "rush", "sack",
+            "interception", "penalty", "penalty_yards", "touchdown",
+        ]
+        pbp = nfl.import_pbp_data(years, columns=cols, downcast=True, cache=True)
+        if pbp is None or pbp.empty:
+            return None
+        pbp = pbp.copy()
+        # Normalize columns with graceful fallbacks
+        def _safe_num(s, default=0):
+            return pd.to_numeric(pbp.get(s, default), errors="coerce").fillna(0)
+
+        pbp["gameday"] = pd.to_datetime(pbp.get("game_date"), errors="coerce")
+        pbp["season"] = pbp["gameday"].dt.year
+        pbp["team"] = pbp.get("posteam").astype(str)
+        pbp["opponent"] = pbp.get("defteam").astype(str)
+        pbp["yards"] = _safe_num("yards_gained")
+        pbp["is_pass"] = _safe_num("pass")
+        pbp["is_rush"] = _safe_num("rush")
+        pbp["is_sack"] = _safe_num("sack")
+        pbp["is_int"] = _safe_num("interception")
+        pbp["is_pen"] = _safe_num("penalty")
+        pbp["pen_yds"] = _safe_num("penalty_yards")
+        pbp["down"] = pd.to_numeric(pbp.get("down"), errors="coerce")
+        pbp["togo"] = pd.to_numeric(pbp.get("ydstogo"), errors="coerce")
+        td = pd.to_numeric(pbp.get("touchdown"), errors="coerce").fillna(0) > 0
+
+        gain_ok = pbp["yards"] >= pbp["togo"].fillna(1e9)
+        pbp["success"] = ((pbp["down"].isin([1, 2, 3]) & gain_ok) | td).astype(int)
+        pbp["explosive"] = (pbp["yards"] >= 20).astype(int)
+
+        grp_cols = ["season", "gameday", "team", "opponent"]
+        agg = pbp.groupby(grp_cols, as_index=False).agg(
+            plays=("yards", "count"),
+            pass_plays=("is_pass", "sum"),
+            rush_plays=("is_rush", "sum"),
+            yards=("yards", "sum"),
+            sacks=("is_sack", "sum"),
+            ints=("is_int", "sum"),
+            pen_yds=("pen_yds", "sum"),
+            success=("success", "mean"),
+            explosive=("explosive", "mean"),
+        )
+        agg["off_ypp"] = agg["yards"] / agg["plays"].replace(0, np.nan)
+        agg["off_pass_rate"] = agg["pass_plays"] / agg["plays"].replace(0, np.nan)
+        agg["off_explosive_rate"] = agg["explosive"]
+        agg["off_sack_rate"] = agg["sacks"] / agg["pass_plays"].replace(0, np.nan)
+        agg["off_int_rate"] = agg["ints"] / agg["pass_plays"].replace(0, np.nan)
+        agg["off_pen_yds_pp"] = agg["pen_yds"] / agg["plays"].replace(0, np.nan)
+        agg["off_success_rate"] = agg["success"]
+        keep = [
+            "season", "gameday", "team", "opponent", "off_ypp",
+            "off_pass_rate", "off_explosive_rate", "off_sack_rate",
+            "off_int_rate", "off_pen_yds_pp", "off_success_rate",
+        ]
+        agg = agg[keep].copy()
+        agg["gameday"] = pd.to_datetime(agg["gameday"], errors="coerce").dt.tz_localize(None)
+        agg.to_csv(PBP_AGG_CACHE, index=False)
+        logger.info("PBP aggregates cached at %s", PBP_AGG_CACHE)
+        return PBP_AGG_CACHE
+    except Exception as e:
+        logger.warning("PBP API aggregation failed: %s", e)
+        return None
 
 
 def _rolling_features(team_games: pd.DataFrame) -> pd.DataFrame:
@@ -658,8 +849,19 @@ def _rolling_features(team_games: pd.DataFrame) -> pd.DataFrame:
 
 def _build_matchup_features(team_rows: pd.DataFrame) -> pd.DataFrame:
     """Create one row per game from home perspective with feature diffs."""
-    home = team_rows[team_rows["is_home"] == 1].copy()
-    away = team_rows[team_rows["is_home"] == 0].copy()
+    # Merge in PBP aggregates if available (2024+)
+    pbp_agg = _load_pbp_aggregates(team_rows)
+    rows = team_rows.copy()
+    if pbp_agg is not None:
+        rows = pd.merge(
+            rows,
+            pbp_agg,
+            on=["season", "gameday", "team", "opponent"],
+            how="left",
+        )
+
+    home = rows[rows["is_home"] == 1].copy()
+    away = rows[rows["is_home"] == 0].copy()
 
     suffixes = ("_home", "_away")
     merged = pd.merge(
@@ -680,6 +882,9 @@ def _build_matchup_features(team_rows: pd.DataFrame) -> pd.DataFrame:
         "qb_intpG_r3", "off_pass_yards_r3", "off_rush_yards_r3",
         "off_turnovers_r3", "def_pass_yards_allowed_r3",
         "def_rush_yards_allowed_r3", "def_turnovers_forced_r3",
+        # PBP aggregates (may be NaN for non-2024)
+        "off_ypp", "off_pass_rate", "off_explosive_rate", "off_sack_rate",
+        "off_int_rate", "off_pen_yds_pp", "off_success_rate",
     ]
 
     for col in feature_cols:

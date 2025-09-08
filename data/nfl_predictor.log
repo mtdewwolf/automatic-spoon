@@ -100,3 +100,71 @@
 2025-09-07 20:29:50,800 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
 2025-09-07 20:29:51,388 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
 2025-09-07 20:29:51,799 | INFO | nfl_predictor | update_model | Models updated. MAE spread=5.460 total=7.551
+2025-09-08 01:20:04,055 | INFO | nfl_predictor | fetch_data | Fetching schedule for years: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+2025-09-08 01:20:04,068 | INFO | nfl_predictor | fetch_data | Using cached schedule: .\data\schedule_2015_ongoing.csv
+2025-09-08 01:20:04,094 | INFO | nfl_predictor | fetch_data | Schedule cached at .\data\schedule_2015_ongoing.csv
+2025-09-08 01:20:14,449 | INFO | nfl_predictor | fetch_data | Weekly data not available for 2025 (skipping): HTTP Error 404: Not Found
+2025-09-08 01:20:14,609 | INFO | nfl_predictor | fetch_data | Weekly player stats cached at .\data\weekly_2015_ongoing.csv
+2025-09-08 01:20:16,519 | INFO | nfl_predictor | fetch_data | Draft picks cached at .\data\draft_2015_ongoing.csv
+2025-09-08 01:20:16,519 | INFO | nfl_predictor | fetch_data | Rosters not available (skipping): module 'nfl_data_py' has no attribute 'import_rosters'
+2025-09-08 01:20:16,520 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
+2025-09-08 01:20:17,171 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
+2025-09-08 01:20:17,172 | INFO | nfl_predictor | train_models | Training models with TimeSeriesSplit CV
+2025-09-08 01:21:48,910 | INFO | nfl_predictor | _log_importances | Top spread feature importances: [('f2', 0.28285473585128784), ('f3', 0.2301700860261917), ('f1', 0.08869200199842453), ('f0', 0.04178408905863762), ('f7', 0.034224849194288254), ('f4', 0.03378277271986008), ('f9', 0.03002830222249031), ('f6', 0.026784351095557213), ('f25', 0.023353058844804764), ('f14', 0.02193313278257847)]
+2025-09-08 01:21:48,910 | INFO | nfl_predictor | _log_importances | Top total feature importances: [('f0', 0.1622348576784134), ('f2', 0.16074781119823456), ('f1', 0.1432274729013443), ('f3', 0.07704271376132965), ('f25', 0.036129921674728394), ('f7', 0.03379567340016365), ('f6', 0.03273404762148857), ('f4', 0.0308062806725502), ('f10', 0.030753565952181816), ('f12', 0.030716408044099808)]
+2025-09-08 01:21:48,919 | INFO | nfl_predictor | train_models | Saved models. CV MAE (spread=7.748, total=10.824)
+2025-09-08 01:26:37,188 | INFO | nfl_predictor | fetch_data | Fetching schedule for years: [1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+2025-09-08 01:26:37,200 | INFO | nfl_predictor | fetch_data | Using cached schedule: .\data\schedule_2015_ongoing.csv
+2025-09-08 01:26:37,227 | INFO | nfl_predictor | fetch_data | Schedule cached at .\data\schedule_2015_ongoing.csv
+2025-09-08 01:26:54,810 | INFO | nfl_predictor | fetch_data | Weekly data not available for 2025 (skipping): HTTP Error 404: Not Found
+2025-09-08 01:26:55,188 | INFO | nfl_predictor | fetch_data | Weekly player stats cached at .\data\weekly_2015_ongoing.csv
+2025-09-08 01:26:55,862 | INFO | nfl_predictor | fetch_data | Draft picks cached at .\data\draft_2015_ongoing.csv
+2025-09-08 01:26:55,862 | INFO | nfl_predictor | fetch_data | Rosters not available (skipping): module 'nfl_data_py' has no attribute 'import_rosters'
+2025-09-08 01:26:55,862 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
+2025-09-08 01:26:56,617 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
+2025-09-08 01:26:56,618 | INFO | nfl_predictor | train_models | Training models with TimeSeriesSplit CV
+2025-09-08 01:28:27,359 | INFO | nfl_predictor | _log_importances | Top spread feature importances: [('f2', 0.28285473585128784), ('f3', 0.2301700860261917), ('f1', 0.08869200199842453), ('f0', 0.04178408905863762), ('f7', 0.034224849194288254), ('f4', 0.03378277271986008), ('f9', 0.03002830222249031), ('f6', 0.026784351095557213), ('f25', 0.023353058844804764), ('f14', 0.02193313278257847)]
+2025-09-08 01:28:27,360 | INFO | nfl_predictor | _log_importances | Top total feature importances: [('f0', 0.1622348576784134), ('f2', 0.16074781119823456), ('f1', 0.1432274729013443), ('f3', 0.07704271376132965), ('f25', 0.036129921674728394), ('f7', 0.03379567340016365), ('f6', 0.03273404762148857), ('f4', 0.0308062806725502), ('f10', 0.030753565952181816), ('f12', 0.030716408044099808)]
+2025-09-08 01:28:27,368 | INFO | nfl_predictor | train_models | Saved models. CV MAE (spread=7.748, total=10.824)
+2025-09-08 01:37:24,306 | INFO | nfl_predictor | fetch_data | Fetching schedule for years: [1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+2025-09-08 01:37:24,319 | INFO | nfl_predictor | fetch_data | Using cached schedule: .\data\schedule_2015_ongoing.csv
+2025-09-08 01:37:24,351 | INFO | nfl_predictor | fetch_data | Schedule cached at .\data\schedule_2015_ongoing.csv
+2025-09-08 01:37:37,932 | INFO | nfl_predictor | fetch_data | Weekly data not available for 2025 (skipping): HTTP Error 404: Not Found
+2025-09-08 01:37:38,414 | INFO | nfl_predictor | fetch_data | Weekly player stats cached at .\data\weekly_2015_ongoing.csv
+2025-09-08 01:37:38,971 | INFO | nfl_predictor | fetch_data | Draft picks cached at .\data\draft_2015_ongoing.csv
+2025-09-08 01:37:38,971 | INFO | nfl_predictor | fetch_data | Rosters not available (skipping): module 'nfl_data_py' has no attribute 'import_rosters'
+2025-09-08 01:37:38,971 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
+2025-09-08 01:37:38,973 | WARNING | nfl_predictor | _build_pbp_aggregate_from_api | PBP API aggregation failed: 1999 cache file does not exist.
+2025-09-08 01:37:39,743 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
+2025-09-08 01:37:39,745 | INFO | nfl_predictor | train_models | Training models with TimeSeriesSplit CV
+2025-09-08 01:39:07,211 | INFO | nfl_predictor | _log_importances | Top spread feature importances: [('f2', 0.28285473585128784), ('f3', 0.2301700860261917), ('f1', 0.08869200199842453), ('f0', 0.04178408905863762), ('f7', 0.034224849194288254), ('f4', 0.03378277271986008), ('f9', 0.03002830222249031), ('f6', 0.026784351095557213), ('f25', 0.023353058844804764), ('f14', 0.02193313278257847)]
+2025-09-08 01:39:07,212 | INFO | nfl_predictor | _log_importances | Top total feature importances: [('f0', 0.1622348576784134), ('f2', 0.16074781119823456), ('f1', 0.1432274729013443), ('f3', 0.07704271376132965), ('f25', 0.036129921674728394), ('f7', 0.03379567340016365), ('f6', 0.03273404762148857), ('f4', 0.0308062806725502), ('f10', 0.030753565952181816), ('f12', 0.030716408044099808)]
+2025-09-08 01:39:07,220 | INFO | nfl_predictor | train_models | Saved models. CV MAE (spread=7.748, total=10.824)
+2025-09-08 01:48:29,488 | INFO | nfl_predictor | fetch_data | Fetching schedule for years: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+2025-09-08 01:48:29,501 | INFO | nfl_predictor | fetch_data | Using cached schedule: .\data\schedule_2015_ongoing.csv
+2025-09-08 01:48:29,528 | INFO | nfl_predictor | fetch_data | Schedule cached at .\data\schedule_2015_ongoing.csv
+2025-09-08 01:48:34,976 | INFO | nfl_predictor | fetch_data | Weekly data not available for 2025 (skipping): HTTP Error 404: Not Found
+2025-09-08 01:48:35,137 | INFO | nfl_predictor | fetch_data | Weekly player stats cached at .\data\weekly_2015_ongoing.csv
+2025-09-08 01:48:35,605 | INFO | nfl_predictor | fetch_data | Draft picks cached at .\data\draft_2015_ongoing.csv
+2025-09-08 01:48:35,605 | INFO | nfl_predictor | fetch_data | Rosters not available (skipping): module 'nfl_data_py' has no attribute 'import_rosters'
+2025-09-08 01:48:35,606 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
+2025-09-08 01:48:35,608 | WARNING | nfl_predictor | _build_pbp_aggregate_from_api | PBP API aggregation failed: 2015 cache file does not exist.
+2025-09-08 01:48:37,449 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
+2025-09-08 01:48:37,450 | INFO | nfl_predictor | train_models | Training models with TimeSeriesSplit CV
+2025-09-08 01:50:07,481 | INFO | nfl_predictor | _log_importances | Top spread feature importances: [('f2', 0.2717922031879425), ('f3', 0.21582379937171936), ('f26', 0.09785976260900497), ('f1', 0.06389729678630829), ('f28', 0.04205644503235817), ('f29', 0.03585116192698479), ('f9', 0.032429181039333344), ('f7', 0.030950501561164856), ('f4', 0.02953978255391121), ('f0', 0.022733239457011223)]
+2025-09-08 01:50:07,482 | INFO | nfl_predictor | _log_importances | Top total feature importances: [('f2', 0.16552098095417023), ('f0', 0.1287199705839157), ('f1', 0.10202669352293015), ('f3', 0.06863978505134583), ('f28', 0.03597868233919144), ('f7', 0.03472490608692169), ('f10', 0.03435394540429115), ('f27', 0.03389548137784004), ('f31', 0.03381514549255371), ('f29', 0.03344859555363655)]
+2025-09-08 01:50:07,491 | INFO | nfl_predictor | train_models | Saved models. CV MAE (spread=7.300, total=10.825)
+2025-09-08 02:04:25,344 | INFO | nfl_predictor | fetch_data | Fetching schedule for years: [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
+2025-09-08 02:04:25,357 | INFO | nfl_predictor | fetch_data | Using cached schedule: .\data\schedule_2015_ongoing.csv
+2025-09-08 02:04:25,384 | INFO | nfl_predictor | fetch_data | Schedule cached at .\data\schedule_2015_ongoing.csv
+2025-09-08 02:04:30,636 | INFO | nfl_predictor | fetch_data | Weekly data not available for 2025 (skipping): HTTP Error 404: Not Found
+2025-09-08 02:04:30,799 | INFO | nfl_predictor | fetch_data | Weekly player stats cached at .\data\weekly_2015_ongoing.csv
+2025-09-08 02:04:31,707 | INFO | nfl_predictor | fetch_data | Draft picks cached at .\data\draft_2015_ongoing.csv
+2025-09-08 02:04:31,707 | INFO | nfl_predictor | fetch_data | Rosters not available (skipping): module 'nfl_data_py' has no attribute 'import_rosters'
+2025-09-08 02:04:31,707 | INFO | nfl_predictor | fetch_data | Combine not available (skipping): module 'nfl_data_py' has no attribute 'import_combine'
+2025-09-08 02:04:31,709 | WARNING | nfl_predictor | _build_pbp_aggregate_from_api | PBP API aggregation failed: 2015 cache file does not exist.
+2025-09-08 02:04:32,189 | INFO | nfl_predictor | engineer_features | Saved preprocessor to .\models\preprocessor.joblib
+2025-09-08 02:04:32,190 | INFO | nfl_predictor | train_models | Training models with TimeSeriesSplit CV
+2025-09-08 02:06:01,526 | INFO | nfl_predictor | _log_importances | Top spread feature importances: [('f2', 0.2717922031879425), ('f3', 0.21582379937171936), ('f26', 0.09785976260900497), ('f1', 0.06389729678630829), ('f28', 0.04205644503235817), ('f29', 0.03585116192698479), ('f9', 0.032429181039333344), ('f7', 0.030950501561164856), ('f4', 0.02953978255391121), ('f0', 0.022733239457011223)]
+2025-09-08 02:06:01,527 | INFO | nfl_predictor | _log_importances | Top total feature importances: [('f2', 0.16552098095417023), ('f0', 0.1287199705839157), ('f1', 0.10202669352293015), ('f3', 0.06863978505134583), ('f28', 0.03597868233919144), ('f7', 0.03472490608692169), ('f10', 0.03435394540429115), ('f27', 0.03389548137784004), ('f31', 0.03381514549255371), ('f29', 0.03344859555363655)]
+2025-09-08 02:06:01,535 | INFO | nfl_predictor | train_models | Saved models. CV MAE (spread=7.300, total=10.825)
