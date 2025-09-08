@@ -164,7 +164,7 @@ with tab_date:
             else:
                 res = res.sort_values(["date", "home"]).reset_index(drop=True)
                 res["moneyline_prob"] = (res["moneyline_prob"] * 100).round(1)
-                st.dataframe(res, width="stretch")
+                st.dataframe(res, use_container_width=True)
         except Exception:
             st.error("Date slate prediction failed:")
             st.code(traceback.format_exc())
@@ -191,7 +191,7 @@ with tab_week:
             else:
                 res = res.sort_values(["date", "home"]).reset_index(drop=True)
                 res["moneyline_prob"] = (res["moneyline_prob"] * 100).round(1)
-                st.dataframe(res, width="stretch")
+                st.dataframe(res, use_container_width=True)
         except Exception:
             st.error("Week prediction failed:")
             st.code(traceback.format_exc())
