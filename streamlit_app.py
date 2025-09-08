@@ -149,6 +149,46 @@ with tab_pred:
             st.error("Prediction failed:")
             st.code(traceback.format_exc())
 
+    st.divider()
+    st.subheader("Upcoming Games — Season Snapshot")
+    try:
+        sched_all = _read_schedule()
+        if not sched_all.empty:
+            # Default to latest season present
+            latest_season = int(sched_all["season"].dropna().astype(int).max())
+            up_season = st.number_input(
+                "Season", min_value=2015, max_value=2100,
+                value=latest_season, key="upcoming_season"
+            )
+            if st.button("Show Upcoming Season Predictions", key="btn_upcoming"):
+                with st.spinner("Computing current predictions for upcoming games..."):
+                    sched_all["gameday"] = pd.to_datetime(
+                        sched_all["gameday"], errors="coerce"
+                    )
+                    today = pd.Timestamp(date.today())
+                    # Upcoming if future date or not yet scored
+                    slate = sched_all[(sched_all["season"].astype(int) == int(up_season)) & (
+                        (sched_all["gameday"].isna()) | (sched_all["gameday"] >= today) |
+                        (sched_all["home_score"].isna() & sched_all["away_score"].isna())
+                    )]
+                    if slate.empty:
+                        st.info("No upcoming games found for the selected season.")
+                    else:
+                        res = _predict_slate_rows(slate)
+                        if res.empty:
+                            st.info("Unable to compute predictions for the slate.")
+                        else:
+                            res = res.sort_values(["date", "home"]).reset_index(False)
+                            res["moneyline_prob"] = (
+                                res["moneyline_prob"] * 100
+                            ).round(1)
+                            st.dataframe(res, use_container_width=True)
+        else:
+            st.info("No schedule available. Train first on the Train tab.")
+    except Exception:
+        st.error("Upcoming games computation failed:")
+        st.code(traceback.format_exc())
+
 
 with tab_date:
     st.subheader("Predict All Games on Date")
