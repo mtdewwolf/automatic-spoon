@@ -101,17 +101,30 @@ st.set_page_config(
 st.title("NFL Betting Predictor Dashboard")
 st.caption("For Sir Toaster the Third — May the odds be ever in your favor")
 
-tab_pred, tab_date, tab_week, tab_train, tab_update, tab_bt, tab_about = st.tabs(
-    [
-        "Single Game",
-        "Predict by Date",
-        "Predict by Week",
-        "Train",
-        "Update",
-        "Backtest",
-        "About",
-    ]
-)
+# Admin gating: hide Train/Update/Backtest unless enabled via env or secrets
+ADMIN_MODE = bool(os.environ.get("NFLP_ADMIN")) or bool(st.secrets.get("ADMIN", False))
+
+if ADMIN_MODE:
+    tab_pred, tab_date, tab_week, tab_train, tab_update, tab_bt, tab_about = st.tabs(
+        [
+            "Single Game",
+            "Predict by Date",
+            "Predict by Week",
+            "Train",
+            "Update",
+            "Backtest",
+            "About",
+        ]
+    )
+else:
+    tab_pred, tab_date, tab_week, tab_about = st.tabs(
+        [
+            "Single Game",
+            "Predict by Date",
+            "Predict by Week",
+            "About",
+        ]
+    )
 
 
 with tab_pred:
@@ -237,8 +250,9 @@ with tab_week:
             st.code(traceback.format_exc())
 
 
-with tab_train:
-    st.subheader("Train Models")
+if ADMIN_MODE:
+    with tab_train:
+        st.subheader("Train Models")
     years_str = st.text_input("Years (e.g., 2015-2025 or 2018,2019,2020)", "2015-2025")
     if st.button("Run Training"):
         try:
@@ -264,8 +278,9 @@ with tab_train:
             st.code(traceback.format_exc())
 
 
-with tab_update:
-    st.subheader("Update Models (Warm-start or Refit)")
+if ADMIN_MODE:
+    with tab_update:
+        st.subheader("Update Models (Warm-start or Refit)")
     c1, c2 = st.columns(2)
     with c1:
         u_season = st.number_input(
@@ -287,8 +302,9 @@ with tab_update:
             st.code(traceback.format_exc())
 
 
-with tab_bt:
-    st.subheader("Backtest")
+if ADMIN_MODE:
+    with tab_bt:
+        st.subheader("Backtest")
     b_c1, b_c2 = st.columns(2)
     with b_c1:
         b_start = st.number_input("Start Year", min_value=2015, max_value=2100, value=2018)
